@@ -1,0 +1,25 @@
+{
+ "start_date": "2026-11-16",
+ "post_hour_pacific": 8,
+ "paused": false,
+ "week": {
+  "Mon": "quote",
+  "Tue": "tuesday",
+  "Wed": "quote",
+  "Thu": "quote",
+  "Fri": "friday",
+  "Sat": "quote",
+  "Sun": "quote"
+ },
+ "instagram": {
+  "on": true,
+  "user_id": ""
+ },
+ "linkedin": {
+  "on": false,
+  "organization_id": "",
+  "api_version": "202610",
+  "token_set_on": "",
+  "auto_refresh": false
+ }
+}

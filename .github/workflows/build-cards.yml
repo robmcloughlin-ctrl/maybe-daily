@@ -1,0 +1,45 @@
+name: Build cards
+
+# Redraws every card in cards/ from posts.json, in the brand fonts (Zodiak and
+# Satoshi, downloaded from Fontshare each time and not stored in this public
+# repository, since Fontshare's licence doesn't cover sharing the files). Runs by hand, and by itself whenever
+# posts.json or the card design changes.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["posts.json", "scripts/render_cards.py"]
+
+permissions:
+  contents: write
+
+concurrency: build-cards
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Get the brand fonts
+        run: |
+          mkdir -p /tmp/f && cd /tmp/f
+          for f in zodiak satoshi; do
+            curl -fsSL -o "$f.zip" "https://api.fontshare.com/v2/fonts/download/$f" && unzip -qo "$f.zip" -d "$f" || echo "Couldn't download $f; keeping the stand-in font."
+          done
+          for name in Zodiak-Regular Zodiak-Italic Satoshi-Medium Satoshi-Bold; do
+            src=$(find /tmp/f -name "$name.woff2" | head -1)
+            [ -n "$src" ] && cp "$src" "$GITHUB_WORKSPACE/fonts/" && echo "Using $name"
+          done
+      - name: Draw the cards
+        run: |
+          pip install -q playwright && python -m playwright install --with-deps chromium >/dev/null
+          python scripts/render_cards.py
+      - name: Save them
+        run: |
+          git add cards
+          git diff --cached --quiet && { echo "Cards unchanged."; exit 0; }
+          git -c user.name=maybe-daily -c user.email=actions@users.noreply.github.com commit -qm "Redraw cards"
+          git push

@@ -1,0 +1,87 @@
+name: Daily post
+
+on:
+  schedule:
+    # GitHub runs schedules in UTC, and sometimes late, so try every hour from 7am to 2pm Pacific.
+    # The script posts once a day, at or after the posting hour, and skips anything already up.
+    - cron: "5 15-22 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Test only: prepare the posts but don't publish them"
+        type: boolean
+        default: true
+      force:
+        description: "Ignore the time-of-day check"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency: daily-post
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Get the state branch (what's already been posted)
+        run: |
+          git clone -q --depth 1 --branch state "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" st \
+            || { mkdir -p st && git -C st init -q -b state; }
+      - name: Post today's card
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          LI_TOKEN: ${{ secrets.LI_TOKEN }}
+          LI_REFRESH_TOKEN: ${{ secrets.LI_REFRESH_TOKEN }}
+          LI_CLIENT_ID: ${{ secrets.LI_CLIENT_ID }}
+          LI_CLIENT_SECRET: ${{ secrets.LI_CLIENT_SECRET }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          FORCE: ${{ inputs.force }}
+          STATE_DIR: st
+        run: python scripts/post.py
+      - name: Save what was posted
+        if: always()
+        run: |
+          cd st
+          # keep about two months of markers
+          ls posted-* 2>/dev/null | sort | head -n -120 | xargs -r rm -f
+          git add -A
+          if ! git diff --cached --quiet; then
+            git -c user.name=maybe-daily -c user.email=actions@users.noreply.github.com commit -qm "Posted $(TZ=America/Los_Angeles date +%F)"
+            git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" HEAD:state
+          fi
+      - name: Open an issue if posting failed
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="Maybe daily post didn't go out on $(TZ=America/Los_Angeles date +%F)"
+          gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "$TITLE in:title" --json number --jq length | grep -qx 0 || exit 0
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" \
+            --body "The scheduled run failed. Details: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+      - name: Remind about the LinkedIn token
+        # LinkedIn tokens last 60 days. Ten days before, open an issue (once).
+        if: always() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          DUE=$(python3 -c "
+          import json; from datetime import date, timedelta
+          li = json.load(open('config.json'))['linkedin']
+          s = li.get('token_set_on')
+          if li.get('on') and s and not li.get('auto_refresh'):
+              exp = date.fromisoformat(s) + timedelta(days=60)
+              if (exp - date.today()).days <= 10: print(exp)
+          ")
+          [ -n "$DUE" ] || exit 0
+          TITLE="Renew the LinkedIn token before $DUE"
+          gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "$TITLE in:title" --json number --jq length | grep -qx 0 || exit 0
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" \
+            --body "The LinkedIn access token stops working on $DUE. Generate a new one (README → LinkedIn), update the LI_TOKEN secret, and set token_set_on in config.json to today's date."
