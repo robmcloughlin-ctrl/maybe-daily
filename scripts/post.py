@@ -69,7 +69,20 @@ def instagram():
             return http("GET", f"{api}/{path}?{q}", secret=token)[2]
         return http("POST", f"{api}/{path}", data=q.encode(), secret=token)[2]
 
-    container = call("POST", f"{user}/media", image_url=image_url, caption=post["caption"])["id"]
+    try:
+        container = call("POST", f"{user}/media", image_url=image_url, caption=post["caption"])["id"]
+    except RuntimeError:
+        # Tokens made with Instagram login use graph.instagram.com instead. Try that,
+        # and say which account the token belongs to, to make setup problems obvious.
+        for host, fields in (("https://graph.facebook.com/v23.0", "id,name"),
+                             ("https://graph.instagram.com/v23.0", "user_id,username")):
+            try:
+                who = http("GET", f"{host}/me?fields={fields}&access_token={token}", secret=token)[2]
+                print(f"  token works on {host.split('/')[2]} as {who}")
+            except RuntimeError as e:
+                print(f"  token doesn't work on {host.split('/')[2]}: {str(e)[:160]}")
+        api = "https://graph.instagram.com/v23.0"
+        container = call("POST", f"{user}/media", image_url=image_url, caption=post["caption"])["id"]
     for _ in range(30):
         status = call("GET", container, fields="status_code").get("status_code")
         if status == "FINISHED": break
