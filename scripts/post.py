@@ -56,7 +56,7 @@ def marker(platform):
 
 # ---------------------------------------------------------------- Instagram
 def instagram():
-    token = os.environ.get("IG_TOKEN", "")
+    token = os.environ.get("IG_TOKEN", "").strip()
     user = os.environ.get("IG_USER_ID") or cfg["instagram"].get("user_id")
     if not token or not user:
         raise RuntimeError("Instagram isn't connected yet: add the IG_TOKEN secret and the account id.")
@@ -112,14 +112,15 @@ def li_text(s):
 
 
 def linkedin_token():
-    rt, cid, cs = (os.environ.get(k, "") for k in ("LI_REFRESH_TOKEN", "LI_CLIENT_ID", "LI_CLIENT_SECRET"))
+    # Pasted secrets often carry a stray newline or space; trim them so headers stay valid.
+    rt, cid, cs = (os.environ.get(k, "").strip() for k in ("LI_REFRESH_TOKEN", "LI_CLIENT_ID", "LI_CLIENT_SECRET"))
     if rt and cid and cs:
         data = urllib.parse.urlencode({"grant_type": "refresh_token", "refresh_token": rt,
                                        "client_id": cid, "client_secret": cs}).encode()
         res = http("POST", "https://www.linkedin.com/oauth/v2/accessToken", data=data,
                    headers={"Content-Type": "application/x-www-form-urlencoded"}, secret=cs)[2]
         return res["access_token"]
-    tok = os.environ.get("LI_TOKEN", "")
+    tok = os.environ.get("LI_TOKEN", "").strip()
     if not tok:
         raise RuntimeError("LinkedIn isn't connected yet: add the LI_TOKEN secret (see README).")
     return tok
