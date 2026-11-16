@@ -16,10 +16,10 @@
   "user_id": "17841477970831814"
  },
  "linkedin": {
-  "on": false,
+  "on": true,
   "organization_id": "110188318",
   "api_version": "202610",
-  "token_set_on": "",
+  "token_set_on": "2026-11-16",
   "auto_refresh": false
  }
 }
