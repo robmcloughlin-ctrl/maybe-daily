@@ -20,6 +20,6 @@
   "organization_id": "110188318",
   "api_version": "202610",
   "token_set_on": "2026-11-16",
-  "auto_refresh": false
+  "auto_refresh": true
  }
 }
