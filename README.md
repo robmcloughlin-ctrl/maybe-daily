@@ -51,4 +51,4 @@ LinkedIn tokens last 60 days. Ten days before this one runs out, an issue opens 
 - `LI_TOKEN`: LinkedIn. Optional: `LI_REFRESH_TOKEN`, `LI_CLIENT_ID`, `LI_CLIENT_SECRET`.
 
 ## How it runs
-`.github/workflows/daily-post.yml` runs every hour from 7 am to 2 pm Pacific. The first run at or after 8 am posts; later runs see the day's marker on the `state` branch and skip. Instagram fetches the card from this repository's public URL, so the repository has to stay public.
+Each day just after 8 am Pacific, a Claude scheduled task ("Maybe daily post trigger") adds a line to `trigger/runs.log`, and that push starts `.github/workflows/daily-post.yml` straight away. The workflow also tries every hour from 7 am to 2 pm Pacific as a backup, because GitHub often skips timed runs. The first run at or after 8 am posts; later runs see the day's marker on the `state` branch and skip. Instagram fetches the card from this repository's public URL, so the repository has to stay public.

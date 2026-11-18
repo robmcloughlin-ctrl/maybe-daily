@@ -1,6 +1,11 @@
 name: Daily post
 
 on:
+  # Main trigger: a scheduled task adds a line to trigger/runs.log just after 8am Pacific each day, which starts this right away.
+  push:
+    branches: [main]
+    paths: ["trigger/**"]
+  # Backup only: GitHub often skips or delays timed runs, so these may not fire.
   schedule:
     # GitHub runs schedules in UTC, and sometimes late, so try every hour from 7am to 2pm Pacific.
     # The script posts once a day, at or after the posting hour, and skips anything already up.
